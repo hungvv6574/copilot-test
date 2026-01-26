@@ -1,3 +1,16 @@
+/**
+ * PAGE_ID: USER_REGISTER
+ * DOMAIN: User
+ * PURPOSE: Đăng ký người dùng offline
+ * COMPONENTS:
+ * - TextInput
+ * - DatePicker
+ * SERVICES:
+ * - user.service.ts
+ * OFFLINE:
+ * - Lưu IndexedDB
+ */
+
 <template>
   <div class="start-page">
     <h1>Welcome to Start Page</h1>
@@ -6,10 +19,10 @@
 </template>
 
 <script setup lang="ts">
-// Add your component logic here
+// Start page component
 </script>
 
-<style scoped>
+<style>
 .start-page {
   padding: 2rem;
   text-align: center;

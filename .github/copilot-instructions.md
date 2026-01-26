@@ -88,6 +88,12 @@ npm run preview
 - **TypeScript**: Static typing for JavaScript
 - **vue-tsc**: Type checking tool for Vue 3
 
+## Agent System Documentation
+
+For details about the error investigation, fixing, and testing agent system, see:
+- [AGENT_SYSTEM.md](./AGENT_SYSTEM.md) - Complete agent documentation and architecture
+- [START_HERE.md](./START_HERE.md) - Quick navigation guide
+
 ---
 
 **When adding features**: Update this file with new patterns, components, or workflows discovered during development.
