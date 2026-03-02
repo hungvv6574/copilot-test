@@ -1,0 +1,15 @@
+{
+  "name": "copilot-flow-kit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Portable GitHub Copilot workflow enforcement kit",
+  "scripts": {
+    "validate": "node ./src/cli.mjs --mode validate --input ./runtime/issue.json",
+    "triage": "node ./src/cli.mjs --mode triage --input ./runtime/issue.json",
+    "triage:ai": "node ./src/cli.mjs --mode triage-ai --input ./runtime/issue.json"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "latest"
+  }
+}

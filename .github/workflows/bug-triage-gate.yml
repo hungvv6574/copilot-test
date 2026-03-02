@@ -1,0 +1,58 @@
+name: Bug Triage Gate
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage:
+    if: contains(github.event.issue.labels.*.name, 'type:bug') || github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build triage payload from issue event
+        run: |
+          mkdir -p .copilot-flow-kit/runtime
+          node ./.copilot-flow-kit/src/issuePayloadToReport.mjs "$GITHUB_EVENT_PATH" ./.copilot-flow-kit/runtime/issue.json
+          cat ./.copilot-flow-kit/runtime/issue.json
+
+      - name: Run triage engine
+        id: triage
+        run: |
+          node ./.copilot-flow-kit/src/cli.mjs --mode triage --input ./.copilot-flow-kit/runtime/issue.json > triage-result.json
+          cat triage-result.json
+
+      - name: Comment triage result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const result = JSON.parse(fs.readFileSync('triage-result.json', 'utf8'));
+            const status = result.triage.status;
+            const reason = result.triage.reason;
+            const body = `## Copilot Flow Triage\n\nStatus: **${status}**\n\nReason: ${reason}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+      - name: Gate for NOT_A_BUG
+        run: |
+          STATUS=$(node -e "const r=require('./triage-result.json');process.stdout.write(r.triage.status)")
+          if [ "$STATUS" = "NOT_A_BUG" ]; then
+            echo "Issue classified as NOT_A_BUG. Stopping flow."
+            exit 0
+          fi

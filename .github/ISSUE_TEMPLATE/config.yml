@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 Project Documentation
+    url: https://github.com/zensho-holdings-002/sopict/blob/master/htmlV3/SO/.github/copilot-instructions.md
+    about: Complete project documentation, architecture, and business type differences
+  - name: 📖 All Instruction Files
+    url: https://github.com/zensho-holdings-002/sopict/tree/master/htmlV3/SO/.github/instructions
+    about: 18+ instruction files for coding standards, order flows, and feature implementations
+  - name: 🤖 Agent Workflows
+    url: https://github.com/zensho-holdings-002/sopict/blob/master/htmlV3/SO/AGENTS.md
+    about: Task patterns and agent workflows for investigation, fix, and testing

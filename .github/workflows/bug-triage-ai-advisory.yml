@@ -1,0 +1,111 @@
+name: Bug Triage AI Advisory
+
+on:
+  issues:
+    types: [opened, edited, labeled, reopened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  triage-ai:
+    if: contains(github.event.issue.labels.*.name, 'type:bug') || github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install flow-kit dependencies (best effort)
+        continue-on-error: true
+        run: npm install --prefix ./.copilot-flow-kit --no-audit --no-fund
+
+      - name: Build triage payload from issue event
+        run: |
+          mkdir -p .copilot-flow-kit/runtime
+          node ./.copilot-flow-kit/src/issuePayloadToReport.mjs "$GITHUB_EVENT_PATH" ./.copilot-flow-kit/runtime/issue.json
+          cat ./.copilot-flow-kit/runtime/issue.json
+
+      - name: Run triage AI advisory (with deterministic fallback)
+        run: |
+          node ./.copilot-flow-kit/src/cli.mjs --mode triage-ai --input ./.copilot-flow-kit/runtime/issue.json > triage-result-ai.json
+          cat triage-result-ai.json
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          COPILOT_TRIAGE_MODEL: ${{ vars.COPILOT_TRIAGE_MODEL }}
+
+      - name: Comment triage AI advisory
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const COMMENT_MARKER = '<!-- copilot-flow-ai-advisory -->';
+            const result = JSON.parse(fs.readFileSync('triage-result-ai.json', 'utf8'));
+            const status = result?.triage?.status ?? 'UNKNOWN';
+            const reason = result?.triage?.reason ?? 'No reason';
+            const engine = result?.meta?.engine ?? 'unknown';
+            const model = result?.meta?.model ?? 'default';
+            const fallbackReason = result?.meta?.fallbackReason ?? '';
+            const setupGuide = Array.isArray(result?.meta?.setupGuide) ? result.meta.setupGuide : [];
+
+            const statusEmoji = {
+              BUG_CONFIRMED: '✅',
+              NEEDS_HUMAN_TRIAGE: '🧭',
+              NOT_A_BUG: '🛑'
+            }[status] ?? 'ℹ️';
+
+            const fallbackText = fallbackReason
+              ? `\n> ⚠️ **Fallback active**: ${fallbackReason}`
+              : '';
+
+            const setupText = setupGuide.length > 0
+              ? `\n\n<details>\n<summary><strong>Setup required</strong></summary>\n\n${setupGuide.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n</details>`
+              : '';
+
+            const body = [
+              COMMENT_MARKER,
+              `## ${statusEmoji} Copilot Flow AI Advisory`,
+              '',
+              '| Field | Value |',
+              '|---|---|',
+              `| Status | **${status}** |`,
+              `| Reason | ${reason} |`,
+              `| Engine | \`${engine}\` |`,
+              `| Model | \`${model}\` |`,
+              '',
+              '> Advisory only. Hard gate remains in `bug-triage-gate.yml`.',
+              fallbackText,
+              setupText
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+
+            const existing = comments.find((comment) =>
+              typeof comment.body === 'string' && comment.body.includes(COMMENT_MARKER)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }

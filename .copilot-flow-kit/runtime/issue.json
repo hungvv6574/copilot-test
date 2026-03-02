@@ -1,0 +1,18 @@
+{
+  "issueNumber": 12345,
+  "title": "HS order history does not refresh after websocket update",
+  "businessType": "HS",
+  "environment": "- **Service Type**: HS | - **Device**: Tablet | - **App Version**: 1.0.0",
+  "reproSteps": [
+    "Open order history page",
+    "Trigger websocket event from backend",
+    "Observe stale status",
+    "log: websocket event received"
+  ],
+  "expectedBehavior": "Order history refreshes within 2 seconds\n\n- **Service Type**: HS\n- **Device**: Tablet\n- **App Version**: 1.0.0",
+  "actualBehavior": "Order history stays stale for over 10 seconds",
+  "evidence": [
+    "log: websocket event received"
+  ],
+  "suspectedScope": []
+}
