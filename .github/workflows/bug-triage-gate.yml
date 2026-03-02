@@ -41,7 +41,43 @@ jobs:
             const result = JSON.parse(fs.readFileSync('triage-result.json', 'utf8'));
             const status = result.triage.status;
             const reason = result.triage.reason;
-            const body = `## Copilot Flow Triage\n\nStatus: **${status}**\n\nReason: ${reason}`;
+
+            const statusLabel = {
+              BUG_CONFIRMED: 'Đã xác nhận là bug',
+              NEEDS_HUMAN_TRIAGE: 'Cần bổ sung thông tin trước khi kết luận',
+              NOT_A_BUG: 'Không phải bug'
+            }[status] ?? 'Trạng thái chưa xác định';
+
+            const statusHelp = {
+              BUG_CONFIRMED: {
+                text: 'Đã đủ dấu hiệu lỗi. Có thể chuyển sang bước sửa lỗi.',
+                next: 'Tạo nhánh fix và cập nhật RCA/implement/test trong PR.'
+              },
+              NEEDS_HUMAN_TRIAGE: {
+                text: 'Thiếu dữ liệu để kết luận. Cần bổ sung thông tin issue.',
+                next: 'Bổ sung bước tái hiện, expected/actual và evidence (log/video/screenshot).'
+              },
+              NOT_A_BUG: {
+                text: 'Nhiều khả năng không phải lỗi phần mềm (đúng thiết kế/cấu hình).',
+                next: 'Xác nhận lại yêu cầu nghiệp vụ hoặc cập nhật hướng dẫn sử dụng.'
+              }
+            }[status] ?? {
+              text: 'Không xác định được trạng thái.',
+              next: 'Vui lòng kiểm tra log workflow để biết chi tiết.'
+            };
+
+            const body = [
+              '## Copilot Flow Triage',
+              '',
+              '| Field | Value |',
+              '|---|---|',
+              `| Status | **${statusLabel}** |`,
+              `| Status code | \`${status}\` |`,
+              `| Meaning | ${statusHelp.text} |`,
+              `| Reason | ${reason} |`,
+              `| Next action | ${statusHelp.next} |`
+            ].join('\n');
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

@@ -1,4 +1,4 @@
-import { CopilotClient } from '@github/copilot-sdk';
+import { CopilotClient, approveAll } from '@github/copilot-sdk';
 import { STATUS } from './stateMachine.mjs';
 import { triageBugReport } from './triage.mjs';
 
@@ -93,6 +93,7 @@ export async function triageBugReportWithCopilot(report) {
   try {
     const session = await client.createSession({
       model,
+      onPermissionRequest: approveAll,
       systemMessage: {
         content: 'Be strict, return JSON only, do not use markdown fences.'
       }

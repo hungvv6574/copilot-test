@@ -53,6 +53,35 @@ jobs:
             const fallbackReason = result?.meta?.fallbackReason ?? '';
             const setupGuide = Array.isArray(result?.meta?.setupGuide) ? result.meta.setupGuide : [];
 
+            const statusLabel = {
+              BUG_CONFIRMED: 'Đã xác nhận là bug',
+              NEEDS_HUMAN_TRIAGE: 'Cần bổ sung thông tin trước khi kết luận',
+              NOT_A_BUG: 'Không phải bug'
+            }[status] ?? 'Trạng thái chưa xác định';
+
+            const statusHelp = {
+              BUG_CONFIRMED: {
+                text: 'Đã đủ dấu hiệu lỗi. Có thể chuyển sang bước sửa lỗi.',
+                next: 'Bắt đầu fix và chuẩn bị PR với RCA/implement/test.'
+              },
+              NEEDS_HUMAN_TRIAGE: {
+                text: 'Thiếu dữ liệu để kết luận chắc chắn.',
+                next: 'Bổ sung thông tin tái hiện và evidence rồi edit issue.'
+              },
+              NOT_A_BUG: {
+                text: 'Nhiều khả năng không phải bug phần mềm.',
+                next: 'Xác nhận lại yêu cầu/cấu hình và thông báo cho reporter.'
+              }
+            }[status] ?? {
+              text: 'Không xác định được trạng thái.',
+              next: 'Kiểm tra log workflow để biết thêm chi tiết.'
+            };
+
+            const engineHelp = {
+              'copilot-sdk': 'Đang dùng AI (Copilot SDK) để phân tích.',
+              'deterministic-fallback': 'AI không khả dụng, hệ thống dùng rule-based fallback.'
+            }[engine] ?? 'Engine không xác định.';
+
             const statusEmoji = {
               BUG_CONFIRMED: '✅',
               NEEDS_HUMAN_TRIAGE: '🧭',
@@ -73,10 +102,14 @@ jobs:
               '',
               '| Field | Value |',
               '|---|---|',
-              `| Status | **${status}** |`,
+              `| Status | **${statusLabel}** |`,
+              `| Status code | \`${status}\` |`,
+              `| Meaning | ${statusHelp.text} |`,
               `| Reason | ${reason} |`,
               `| Engine | \`${engine}\` |`,
+              `| Engine meaning | ${engineHelp} |`,
               `| Model | \`${model}\` |`,
+              `| Next action | ${statusHelp.next} |`,
               '',
               '> Advisory only. Hard gate remains in `bug-triage-gate.yml`.',
               fallbackText,
