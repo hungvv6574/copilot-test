@@ -1,0 +1,201 @@
+name: Code Auto - Phase Progression
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  progress:
+    if: contains(github.event.issue.labels.*.name, 'copilot:phase')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Move next phase to ready / create final PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const READY_LABEL = 'copilot:ready';
+            const QUEUED_LABEL = 'copilot:queued';
+            const DONE_LABEL = 'copilot:done';
+            const PHASE_LABEL = 'copilot:phase';
+            const assignee = process.env.COPILOT_ASSIGNEE || 'github-copilot[bot]';
+
+            async function ensureLabel(name, color, description) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name });
+              } catch (e) {
+                if (e.status === 404) {
+                  await github.rest.issues.createLabel({ owner, repo, name, color, description });
+                } else {
+                  throw e;
+                }
+              }
+            }
+
+            await ensureLabel(DONE_LABEL, '1D9E74', 'Completed automated phase issue');
+
+            const body = issue.body || '';
+            const parentIssueMatch = body.match(/parent_issue:\s*(\d+)/i);
+            const phaseIndexMatch = body.match(/phase_index:\s*(\d+)/i);
+            const phaseTotalMatch = body.match(/phase_total:\s*(\d+)/i);
+            const accumBranchMatch = body.match(/accum_branch:\s*([^\r\n]+)/i);
+            const defaultBranchMatch = body.match(/default_branch:\s*([^\r\n]+)/i);
+
+            if (!parentIssueMatch || !phaseIndexMatch || !phaseTotalMatch || !accumBranchMatch || !defaultBranchMatch) {
+              core.warning(`Cannot parse phase metadata from issue #${issue.number}.`);
+              return;
+            }
+
+            const parentIssueNumber = Number(parentIssueMatch[1]);
+            const currentPhaseIndex = Number(phaseIndexMatch[1]);
+            const phaseTotal = Number(phaseTotalMatch[1]);
+            const accumBranch = accumBranchMatch[1].trim();
+            const defaultBranch = defaultBranchMatch[1].trim();
+            const parentLabel = `copilot:parent-${parentIssueNumber}`;
+
+            try {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name: READY_LABEL });
+            } catch (e) {
+              if (e.status !== 404) throw e;
+            }
+            try {
+              await github.rest.issues.removeLabel({ owner, repo, issue_number: issue.number, name: QUEUED_LABEL });
+            } catch (e) {
+              if (e.status !== 404) throw e;
+            }
+            await github.rest.issues.addLabels({ owner, repo, issue_number: issue.number, labels: [DONE_LABEL] });
+
+            const allPhases = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'all',
+              labels: `${PHASE_LABEL},${parentLabel}`,
+              per_page: 100
+            });
+
+            const openPhases = allPhases.filter(i => i.state === 'open');
+            const queuedOrReady = openPhases.map(i => {
+              const b = i.body || '';
+              const idx = Number((b.match(/phase_index:\s*(\d+)/i) || [,'0'])[1]);
+              return { issue: i, idx };
+            }).filter(x => Number.isFinite(x.idx) && x.idx > 0);
+
+            const next = queuedOrReady
+              .filter(x => x.idx > currentPhaseIndex)
+              .sort((a, b) => a.idx - b.idx)[0];
+
+            if (next) {
+              const nextIssue = next.issue;
+
+              try {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: nextIssue.number, name: QUEUED_LABEL });
+              } catch (e) {
+                if (e.status !== 404) throw e;
+              }
+
+              await github.rest.issues.addLabels({ owner, repo, issue_number: nextIssue.number, labels: [READY_LABEL] });
+
+              try {
+                await github.rest.issues.addAssignees({
+                  owner,
+                  repo,
+                  issue_number: nextIssue.number,
+                  assignees: [assignee]
+                });
+              } catch (e) {
+                core.warning(`Cannot assign ${assignee} to issue #${nextIssue.number}: ${e.message}`);
+              }
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: nextIssue.number,
+                body: [
+                  `➡️ Previous phase is completed. This phase is now READY.`,
+                  '',
+                  `@github/copilot please implement this phase now.`,
+                  `- Base branch: \`${accumBranch}\``,
+                  `- Open a PR into \`${accumBranch}\``,
+                  `- In PR body include: \`Phase-Issue: #${nextIssue.number}\``
+                ].join('\n')
+              });
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: parentIssueNumber,
+                body: `✅ Phase ${currentPhaseIndex}/${phaseTotal} completed via #${issue.number}. Kicked off next phase: #${nextIssue.number}.`
+              });
+
+              return;
+            }
+
+            if (openPhases.length === 0) {
+              const { data: parentIssue } = await github.rest.issues.get({
+                owner,
+                repo,
+                issue_number: parentIssueNumber
+              });
+
+              const existingPRs = await github.paginate(github.rest.pulls.list, {
+                owner,
+                repo,
+                state: 'open',
+                base: defaultBranch,
+                head: `${owner}:${accumBranch}`,
+                per_page: 100
+              });
+
+              if (existingPRs.length === 0) {
+                const compare = await github.rest.repos.compareCommits({
+                  owner,
+                  repo,
+                  base: defaultBranch,
+                  head: accumBranch
+                });
+
+                if (compare.data.ahead_by > 0) {
+                  const { data: finalPr } = await github.rest.pulls.create({
+                    owner,
+                    repo,
+                    title: `[AUTO][PHASED] ${parentIssue.title}`,
+                    head: accumBranch,
+                    base: defaultBranch,
+                    body: [
+                      `Automated final PR for phased execution.`,
+                      '',
+                      `- Parent issue: #${parentIssueNumber}`,
+                      `- Source accumulation branch: \`${accumBranch}\``,
+                      '',
+                      `All generated phase issues are completed.`
+                    ].join('\n'),
+                    draft: false
+                  });
+
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: parentIssueNumber,
+                    body: `🎉 All phases completed. Final PR created: #${finalPr.number}`
+                  });
+                } else {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: parentIssueNumber,
+                    body: `ℹ️ All phases are closed, but accumulation branch \`${accumBranch}\` has no diff against \`${defaultBranch}\`.`
+                  });
+                }
+              }
+            }
+        env:
+          COPILOT_ASSIGNEE: ${{ vars.COPILOT_ASSIGNEE }}
