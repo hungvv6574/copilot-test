@@ -7,7 +7,6 @@ body:
   - type: markdown
     attributes:
       value: |
-        This template is **repo-agnostic** and works with the workflows in `.github/workflows/`.
         It is triggered when both conditions are met:
         - Label: `code-auto`
         - Assignee: `github-copilot[bot]` (or repo variable `COPILOT_ASSIGNEE`)
@@ -18,63 +17,26 @@ body:
         3. Assign Copilot to this issue.
         4. Automation creates phase issues and runs them one-by-one.
 
-  - type: input
-    id: objective
-    attributes:
-      label: Overall objective
-      description: Short business goal for the whole spec.
-      placeholder: Implement end-to-end checkout refactor with backward compatibility.
-    validations:
-      required: true
-
-  - type: textarea
-    id: constraints
-    attributes:
-      label: Global constraints
-      description: Rules applied to all phases (coding standards, testing, non-goals).
-      placeholder: |
-        - Keep public APIs backward-compatible.
-        - Add tests for every behavior change.
-        - Do not refactor unrelated files.
-      render: markdown
-    validations:
-      required: false
-
   - type: textarea
     id: phased_spec
     attributes:
-      label: Phased spec (required format)
-      description: "Use exact headers `## Phase 1`, `## Phase 2`, ... for auto parsing (minimum: 1 phase)."
+      label: Phased processing plan (required)
+      description: "Use simple bullet points for each phase. Keep exact headers `## Phase 1`, `## Phase 2`, ... (minimum: 1 phase)."
       value: |
         ## Phase 1
-        ### Scope
-        - Update modules/files: ...
-        - Non-goals: ...
-
-        ### Acceptance Criteria
-        - [ ] Functional behavior matches spec
-        - [ ] Unit/integration tests added or updated
-        - [ ] No breaking API changes
+        - Add a "Submit" button to `Splash.vue`
+        - Add click handling for the new button
+        - On click, send data to the API
 
         ## Phase 2
-        ### Scope
-        - Update modules/files: ...
-        - Data migration/compatibility notes: ...
-
-        ### Acceptance Criteria
-        - [ ] Backward compatibility validated
-        - [ ] Regression tests pass
-        - [ ] Performance is not degraded
+        - Validate input data before calling the API
+        - Show a loading state while sending
+        - Show success/failure feedback to the user
 
         ## Phase 3
-        ### Scope
-        - Cleanup/refactor in-scope code only: ...
-        - Documentation updates: ...
-
-        ### Acceptance Criteria
-        - [ ] Lint/build/test are green
-        - [ ] Final checklist completed
-        - [ ] Ready for final review
+        - Add tests for the submit flow
+        - Verify there is no regression on other screens
+        - Update documentation if needed
       render: markdown
     validations:
       required: true
