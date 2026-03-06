@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   bootstrap:
-    if: contains(github.event.issue.labels.*.name, 'code-auto')
+    if: contains(github.event.issue.labels.*.name, 'code auto')
     runs-on: ubuntu-latest
     steps:
       - name: Create phase issues and kickoff phase 1
@@ -23,7 +23,7 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
-            const PHASED_LABEL = 'code-auto';
+            const PHASED_LABEL = 'code auto';
             const PHASE_LABEL = 'copilot:phase';
             const QUEUED_LABEL = 'copilot:queued';
             const READY_LABEL = 'copilot:ready';
@@ -57,10 +57,10 @@ jobs:
                   issue_number: issue.number,
                   body: [
                     warningMarker,
-                    `⚠️ \\`code-auto\\` detected but this issue is not assigned to \\`${assignee}\\`.`,
+                    `⚠️ \\`code auto\\` detected but this issue is not assigned to \\`${assignee}\\`.`,
                     '',
                     'To start automation, follow this order:',
-                    '1. Keep label `code-auto`',
+                    '1. Keep label `code auto`',
                     `2. Assign issue to \\`${assignee}\\``,
                     '3. Ensure body has at least one `## Phase N` section',
                     '',
@@ -140,7 +140,7 @@ jobs:
                   issue_number: issue.number,
                   body: [
                     warningMarker,
-                    '⚠️ `code-auto` was detected, but this issue has no phase sections.',
+                    '⚠️ `code auto` was detected, but this issue has no phase sections.',
                     '',
                     'Please add at least one phase header in the body, for example:',
                     '',
@@ -185,7 +185,7 @@ jobs:
                   issue_number: issue.number,
                   body: [
                     warningMarker,
-                    '⚠️ `code-auto` detected phase sections with missing/too-short content.',
+                    '⚠️ `code auto` detected phase sections with missing/too-short content.',
                     '',
                     'Please add clear scope and acceptance criteria for these phases:',
                     badPhaseList,

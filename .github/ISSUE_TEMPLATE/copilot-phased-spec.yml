@@ -1,14 +1,14 @@
 name: 🤖 Code Auto By Specs
-description: "One long spec split into phases and executed sequentially by Code Auto workflows (label: code-auto)."
+description: "One long spec split into phases and executed sequentially by Code Auto workflows (label: code auto)."
 title: "[CODING] "
 labels:
-  - code-auto
+  - "code auto"
 body:
   - type: markdown
     attributes:
       value: |
         It is triggered when both conditions are met:
-        - Label: `code-auto`
+        - Label: `code auto`
         - Assignee: `github-copilot[bot]` (or repo variable `COPILOT_ASSIGNEE`)
 
         How it works:
